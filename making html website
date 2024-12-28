@@ -1,0 +1,47 @@
+import requests
+import json
+import gradio as gr
+
+url = "http://localhost:11434/api/generate"
+headers = {'Content-Type': 'application/json'}
+
+history = []
+
+def generate_response(prompt):
+    history.append(prompt)
+    
+    # Limit history length to prevent excessive prompts
+    if len(history) > 5:  # Change the number as per your needs
+        history.pop(0)
+
+    final_prompt = "\n".join(history)
+
+    data = {
+        "model": "Daiwik_phi_GPT",
+        "prompt": final_prompt,
+        "stream": False  # Set to False since you are not using streaming here
+    }
+
+    try:
+        response = requests.post(url, headers=headers, data=json.dumps(data))
+        if response.status_code == 200:
+            response_data = response.text
+            try:
+                data = json.loads(response_data)
+                return data.get('response', 'No response field in data.')
+            except json.JSONDecodeError:
+                return "Failed to decode the JSON response from the server."
+        else:
+            return f"Error: {response.status_code} - {response.text}"
+
+    except requests.exceptions.RequestException as e:
+        return f"Request failed: {e}"
+
+# Gradio Interface
+interface = gr.Interface(
+    fn=generate_response,
+    inputs=gr.Textbox(lines=2, placeholder="What is your question?"),
+    outputs="text"
+)
+
+interface.launch(share=True)
